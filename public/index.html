@@ -5,14 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io('http://localhost:3000');
-        socket.on('hello', data => {
-            console.log(data)
-        });
-        const params = new URLSearchParams(window.location.search)
-        console.log(params.get('h'))
-    </script>
+    <script src="index.js"></script>
 </head>
 <body>
     Game
