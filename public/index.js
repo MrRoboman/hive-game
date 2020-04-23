@@ -503,10 +503,12 @@ socket.on('move', pieces => {
     console.log('received move', pieces)
     let i = 0
     while (i < 5) {
-        players[WHITE].pieces = pieces[i++]
+        players[WHITE][i].pieces = pieces[i]
+        i++
     }
     while (i < 10) {
-        players[BLACK].pieces = pieces[i++]
+        players[BLACK][i-5].pieces = pieces[i]
+        i++
     }
     const boardPieces = pieces[i]
     for (index in boardPieces) {
