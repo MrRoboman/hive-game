@@ -1,7 +1,7 @@
 var PORT = process.env.PORT || 3000
 var express = require('express')
 var path = require('path')
-const uuidv4 = require('uuid')
+const uuidv4 = require('uuid/v4')
 
 var app = express()
 var server = app.listen(PORT)
@@ -11,27 +11,29 @@ app.use(express.static('public'))
 var socket = require('socket.io')
 var io = socket(server)
 
-const games = {}
+const board = {}
 const players = {}
 function createPlayer(uuid, socket) {
-    players[uuid] = {
+    players[socket] = {
         uuid,
         socket,
         isConnected: true,
     }
-    return players[uuid]
+    return players[socket]
 }
 function getPlayer(uuid) {
-    return players[uuid]
+    for (const p in players) {
+        if (players[p].uuid === uuid) return players[p]
+    }
+    return null
 }
-
-function getGame(game) {
-    return games[game]
+function disconnectPlayer(socket) {
+    players[socket].isConnected = false
 }
 
 io.sockets.on('connection', (socket) => {
     socket.emit('handshake0')
-    socket.on('handshake1', (uuid, game) => {
+    socket.on('handshake1', (uuid) => {
         if (!uuid) {
             uuid = uuidv4()
             socket.emit('uuid', uuid)
@@ -39,13 +41,15 @@ io.sockets.on('connection', (socket) => {
         if (!getPlayer(uuid)) {
             createPlayer(uuid, socket)
         }
-        if (getGame(game)) {
-            // do stuff
-        }
-        console.log(uuid, game)
+        console.log(uuid)
+    })
+
+    socket.on('move', data => {
+        console.log('move', data)
+        socket.broadcast.emit('move', data)
     })
 
     socket.on('disconnect', data => {
-        console.log('disconnect', data)
+        disconnectPlayer(socket)
     })
 })
