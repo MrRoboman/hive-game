@@ -587,17 +587,22 @@ function getLeftRight(neighbors, i) {
 }
 
 function canDoGroundMove(neighbors, i) {
-    const spaceIsEmpty = !neighbors[i].piece
     const [left, right] = getLeftRight(neighbors, i)
+    
+    const spaceIsEmpty = !neighbors[i].piece
     const spaceIsNextToPiece = left.piece || right.piece
-    const isNotTightSqueeze = !(left.piece && right.piece)
-    const selectedIsNotLeftOrRight = left !== selected && right !== selected
+    const spaceIsNextToTwoPieces = left.piece && right.piece
+    const spaceIsNextToSelected = left === selected || right === selected
+
+    const isNotTightSqueeze = !spaceIsNextToTwoPieces || spaceIsNextToSelected
+    const spaceIsNotOnlyNextToSelected = !(spaceIsNextToSelected && !spaceIsNextToTwoPieces)
+
     const isNotAlreadyAvailable = !neighbors[i].isAvailable
     return (
         spaceIsEmpty &&
         spaceIsNextToPiece &&
         isNotTightSqueeze &&
-        selectedIsNotLeftOrRight &&
+        spaceIsNotOnlyNextToSelected &&
         isNotAlreadyAvailable
     )
 }
