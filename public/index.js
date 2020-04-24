@@ -1,4 +1,4 @@
-const socket = io('http://localhost:3000')
+const socket = io()
 const params = new URLSearchParams(window.location.search)
 
 function getUuid() {
