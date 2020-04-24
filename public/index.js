@@ -562,6 +562,10 @@ function mouseClicked() {
                 if (!selected) {
                     selectSpace(space)
                     showAvailableMoves(space)
+                    if (getAvailableSpaces().length === 0) {
+                        console.log('That piece cannot move')
+                        unselectSpace()
+                    }
                     return
                 } else if (space === selected) {
                     unselectSpace()
