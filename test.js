@@ -1,4 +1,4 @@
-const hive = require('./server-hive')
+const hive = require('./public/hive')
 
 describe('server', () => {
     const whiteBee = () => [{ color: hive.colors.WHITE, type: hive.types.BEE }]
@@ -85,7 +85,7 @@ describe('server', () => {
             [0, 0],
             [{ color: hive.colors.WHITE, type: hive.types.GRASSHOPPER }]
         )
-        expect(hive.getAvailaleSpaces().length).toBe(1)
+        expect(hive.getAvailableSpaces().length).toBe(1)
     })
 
     it('getSpacesOnBoardByColor', () => {
@@ -134,6 +134,13 @@ describe('server', () => {
             'GRASSHOPPER',
             'ANT',
         ])
+    })
+
+    it('isOnBoard', () => {
+        const offBoard = hive.getSpace(0)
+        const onBoard = hive.getSpace([0, 0])
+        expect(hive.isOnBoard(offBoard)).toBe(false)
+        expect(hive.isOnBoard(onBoard)).toBe(true)
     })
 
     describe('createPlayerSpaces', () => {
@@ -324,7 +331,7 @@ describe('server', () => {
         let assertMove = (piece, move, expectedIndexes) => {
             const selected = putPiece(0, 0, piece)
             move(selected)
-            const availableSpaces = hive.getAvailaleSpaces()
+            const availableSpaces = hive.getAvailableSpaces()
             expect(availableSpaces.length).toBe(expectedIndexes.length)
             availableSpaces.forEach((space) => {
                 const isExpectedIndex = expectedIndexes.some((index) =>
@@ -413,6 +420,41 @@ describe('server', () => {
         })
 
         it('setSpacesAvailableByInsect', () => {})
+    })
+
+    describe('getPlaceableSpaces', () => {
+        it('handles first placement', () => {
+            const beeSpace = hive.createSpaceAtIndex(0, blackBee())
+            const spaces = hive.getPlaceableSpaces(beeSpace)
+            expect(spaces.length).toBe(1)
+            expect(spaces[0].index).toEqual([0, 0])
+        })
+
+        it('handles second placement', () => {
+            hive.createSpaceAtIndex([0, 0], whiteBee())
+            const beeSpace = hive.createSpaceAtIndex(0, blackBee())
+            const spaces = hive.getPlaceableSpaces(beeSpace)
+            expect(spaces.length).toBe(6)
+            expect(spaces[0].index).toEqual([0, -1])
+            expect(spaces[1].index).toEqual([1, -1])
+            expect(spaces[2].index).toEqual([1, 0])
+            expect(spaces[3].index).toEqual([0, 1])
+            expect(spaces[4].index).toEqual([-1, 0])
+            expect(spaces[5].index).toEqual([-1, -1])
+        })
+
+        it('handles third placement', () => {
+            hive.createSpaceAtIndex([0, 0], blackAnt())
+            hive.createSpaceAtIndex([0, -1], whiteBee())
+            const beeSpace = hive.createSpaceAtIndex(0, blackBee())
+            const spaces = hive.getPlaceableSpaces(beeSpace)
+            const indexes = spaces.map((s) => s.index)
+            expect(indexes).toEqual([
+                [1, 0],
+                [0, 1],
+                [-1, 0],
+            ])
+        })
     })
 
     describe('isValidMove', () => {

@@ -11,8 +11,13 @@ app.use(express.static('public'))
 var socket = require('socket.io')
 var io = socket(server)
 
+const hive = require('./server-hive')
+
+hive.resetSpaces()
+
 const board = {}
 const players = {}
+
 function createPlayer(uuid, socket) {
     players[socket] = {
         uuid,
@@ -44,12 +49,16 @@ io.sockets.on('connection', (socket) => {
         console.log(uuid)
     })
 
-    socket.on('move', data => {
-        console.log('move', data)
-        socket.broadcast.emit('move', data)
+    socket.on('move', ({ fromSpaceIndex, toSpaceIndex }) => {
+        console.log('move', fromSpaceIndex, toSpaceIndex)
+        const fromSpace = hive.getSpace(fromSpaceIndex)
+        const toSpace = hive.getSpace(toSpaceIndex)
+        if (hive.isValidMove(fromSpace, toSpace)) {
+            socket.broadcast.emit('move', { fromSpaceIndex, toSpaceIndex })
+        }
     })
 
-    socket.on('disconnect', data => {
+    socket.on('disconnect', (data) => {
         disconnectPlayer(socket)
     })
 })
