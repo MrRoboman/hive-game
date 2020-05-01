@@ -1,4 +1,48 @@
 const socket = io()
+function getUuid() {
+    return localStorage.getItem('uuid')
+}
+
+function setUuid(uuid) {
+    localStorage.setItem('uuid', uuid)
+}
+
+function getGame() {
+    return params.get('h')
+}
+
+socket.on('handshake0', () => {
+    socket.emit('handshake1', getUuid())
+})
+
+socket.on('uuid', (uuid) => {
+    setUuid(uuid)
+})
+
+function emitMove(fromSpace, toSpace) {
+    socket.emit('move', {
+        fromSpaceIndex: fromSpace.index,
+        toSpaceIndex: toSpace.index,
+    })
+}
+
+function emitReset() {
+    socket.emit('reset')
+}
+
+socket.on('gameState', (gameState) => {
+    console.log('gameState', gameState)
+    hive.resetSpaces()
+    gameState.forEach(({ index, pieces }) => {
+        hive.createSpaceAtIndex(index, pieces)
+    })
+})
+
+function keyPressed() {
+    if (key === 'r') {
+        emitReset()
+    }
+}
 
 let images
 
@@ -83,14 +127,14 @@ function setup() {
     createCanvas(windowWidth, windowHeight)
     orientation = createVector(width / 2, height / 2)
 
-    hive.resetGame()
+    // hive.resetGame()
 }
 
 function draw() {
     dragScreen()
     background(100)
 
-    // drawBoardPieces()
+    drawBoardPieces()
     drawAvailableSpaces()
     drawPlayerPieces()
     drawSelectionHex()
@@ -113,11 +157,11 @@ function dragScreen() {
     }
 }
 
-// function drawBoardPieces() {
-//     hive.getSpacesOnBoardWithPieces().forEach(({ piece, pos }) => {
-//         drawPiece(piece, getOrientPosition(pos), radius)
-//     })
-// }
+function drawBoardPieces() {
+    hive.getSpacesOnBoardWithPieces().forEach((space) => {
+        drawPiece(space.piece, getOrientPosition(space), radius)
+    })
+}
 
 function drawAvailableSpaces() {
     availableStroke()
@@ -196,6 +240,10 @@ function selectSpace(space) {
     }
 }
 
+function unselectSpace() {
+    selected = false
+}
+
 function mouseClicked() {
     const clickPos = createVector(mouseX, mouseY)
 
@@ -209,50 +257,51 @@ function mouseClicked() {
                     return
                 }
                 selectSpace(space)
+                hive.clearAvailableSpaces()
                 hive.markSpacesAvailableForPlacement(space)
                 return
             }
         }
     }
 
-    // const availableSpaces = getAvailableSpaces()
-    // for (let i = 0; i < availableSpaces.length; i++) {
-    //     const space = availableSpaces[i]
-    //     if (didClickSpace(clickPos, getOrientPosition(space.pos))) {
-    //         emitMove(selected, space)
-    //         movePiece(selected, space)
-    //         unselectSpace()
-    //         clearAvailableSpaces()
-    //         checkForWin()
-    //         nextTurn()
-    //         return
-    //     }
-    // }
+    const availableSpaces = hive.getAvailableSpaces()
+    for (let i = 0; i < availableSpaces.length; i++) {
+        const space = availableSpaces[i]
+        if (didClickSpace(clickPos, getOrientPosition(space))) {
+            emitMove(selected, space)
+            hive.movePiece(selected, space)
+            unselectSpace()
+            hive.clearAvailableSpaces()
+            // checkForWin()
+            // nextTurn()
+            return
+        }
+    }
 
-    // const boardPieceSpaces = getAllBoardSpacesWithPieces()
-    // for (let i = 0; i < boardPieceSpaces.length; i++) {
-    //     const space = boardPieceSpaces[i]
-    //     if (didClickSpace(clickPos, getOrientPosition(space.pos))) {
-    //         if (isMyTurn(space.color)) {
-    //             if (wouldBreakOneHive(space)) {
-    //                 console.log('Breaks one hive rule!')
-    //                 return
-    //             }
-    //             if (!selected) {
-    //                 selectSpace(space)
-    //                 showAvailableMoves(space)
-    //                 if (getAvailableSpaces().length === 0) {
-    //                     console.log('That piece cannot move')
-    //                     unselectSpace()
-    //                 }
-    //                 return
-    //             } else if (space === selected) {
-    //                 unselectSpace()
-    //                 clearAvailableSpaces()
-    //                 return
-    //             }
-    //         }
-    //     }
-    // }
+    const boardPieceSpaces = hive.getSpacesOnBoardWithPieces()
+    for (let i = 0; i < boardPieceSpaces.length; i++) {
+        const space = boardPieceSpaces[i]
+        if (didClickSpace(clickPos, getOrientPosition(space))) {
+            if (hive.isMyTurn(space.color)) {
+                if (hive.wouldBreakOneHive(space)) {
+                    console.log('Breaks one hive rule!')
+                    return
+                }
+                if (!selected) {
+                    selectSpace(space)
+                    hive.setSpacesAvailableByInsect(space)
+                    if (hive.getAvailableSpaces().length === 0) {
+                        console.log('That piece cannot move')
+                        unselectSpace()
+                    }
+                    return
+                } else if (space === selected) {
+                    unselectSpace()
+                    hive.clearAvailableSpaces()
+                    return
+                }
+            }
+        }
+    }
     // loop()
 }

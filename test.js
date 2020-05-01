@@ -31,6 +31,12 @@ describe('server', () => {
 
     const putPiece = (x, y, piece) => hive.createSpaceAtIndex([x, y], piece)
 
+    const makePieces = (indexes, pieceFn = whiteBee) => {
+        indexes.forEach((index) => {
+            hive.createSpaceAtIndex(index, pieceFn())
+        })
+    }
+
     beforeEach(() => {
         hive.resetSpaces()
     })
@@ -109,6 +115,37 @@ describe('server', () => {
         expect(hive.getSpacesOnBoardByColor(hive.colors.BLACK).length).toBe(2)
     })
 
+    it('getAllAdjacentSpacesWithPieces', () => {
+        const space1 = hive.createSpaceAtIndex([0, 0], blackAnt())
+        hive.createSpaceAtIndex([0, 1], blackAnt())
+        const space2 = hive.createSpaceAtIndex([3, 3], blackAnt())
+
+        let indexes = hive
+            .getAllAdjacentSpacesWithPieces(space1)
+            .map((s) => s.index)
+        expect(indexes).toEqual([
+            [0, 0],
+            [0, 1],
+        ])
+
+        indexes = hive
+            .getAllAdjacentSpacesWithPieces(space2)
+            .map((s) => s.index)
+        expect(indexes).toEqual([[3, 3]])
+    })
+
+    it('wouldBreakOneHive', () => {
+        makePieces([
+            [0, -1],
+            [0, 0],
+            [0, 1],
+        ])
+        const shouldBreakRule = hive.wouldBreakOneHive(hive.getSpace([0, 0]))
+        const shouldNotBreakRule = hive.wouldBreakOneHive(hive.getSpace([0, 1]))
+        expect(shouldBreakRule).toBe(true)
+        expect(shouldNotBreakRule).toBe(false)
+    })
+
     describe('getNeighbors', () => {
         it('does not accept a number', () => {
             expect(() => hive.getNeighbors(2)).toThrow()
@@ -124,6 +161,14 @@ describe('server', () => {
             expect(neighbors[5].index).toEqual([-1, -1])
             expect(hive.getSpaces().length).toBe(6)
         })
+    })
+
+    it('getNeighborsWithPieces', () => {
+        hive.createSpaceAtIndex([0, -1], blackBee())
+        const space = hive.createSpaceAtIndex([0, 0], whiteBee())
+        const neighborsWithPieces = hive.getNeighborsWithPieces(space.index)
+        const indexes = neighborsWithPieces.map((s) => s.index)
+        expect(indexes).toEqual([[0, -1]])
     })
 
     it('types', () => {

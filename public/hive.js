@@ -47,6 +47,19 @@ const hive = {
         return true
     },
 
+    removePiece(space) {
+        return space.pieces.pop()
+    },
+
+    setPiece(piece, space) {
+        space.pieces.push(piece)
+    },
+
+    movePiece(fromSpace, toSpace) {
+        const piece = this.removePiece(fromSpace)
+        this.setPiece(piece, toSpace)
+    },
+
     mustPlayQueen({ color, type }) {
         const queenHasNotBeenPlayed =
             this.getBoardSpacesByPieceAttributes({ color, type: types.BEE })
@@ -59,6 +72,35 @@ const hive = {
             threePiecesHaveBeenPlayed &&
             notCurrentlyPlayingQueen
         )
+    },
+
+    wouldBreakOneHive(space) {
+        const piece = this.removePiece(space)
+        const boardPieces = this.getSpacesOnBoardWithPieces()
+        if (boardPieces.length === 0) {
+            this.setPiece(piece, space)
+            return true
+        }
+        const adjacentPieces = this.getAllAdjacentSpacesWithPieces(
+            boardPieces[0]
+        )
+        this.setPiece(piece, space)
+        return boardPieces.length !== adjacentPieces.length
+    },
+
+    getAllAdjacentSpacesWithPieces(space, seen = new Set()) {
+        if (seen.has(space)) {
+            return
+        }
+        seen.add(space)
+        this.getNeighborsWithPieces(space.index).forEach((neighbor) =>
+            this.getAllAdjacentSpacesWithPieces(neighbor, seen)
+        )
+        return Array.from(seen)
+    },
+
+    clearAvailableSpaces() {
+        this.getSpaces().forEach((s) => (s.isAvailable = false))
     },
 
     getSpaces() {
@@ -142,6 +184,10 @@ const hive = {
             []
         )
         return Array.from(new Set(neighborsOfSpaces))
+    },
+
+    getNeighborsWithPieces(index) {
+        return this.getNeighbors(index).filter((space) => space.piece)
     },
 
     createSpaceAtIndex(index, pieces = []) {

@@ -11,9 +11,9 @@ app.use(express.static('public'))
 var socket = require('socket.io')
 var io = socket(server)
 
-const hive = require('./server-hive')
+const hive = require('./public/hive')
 
-hive.resetSpaces()
+hive.resetGame()
 
 const board = {}
 const players = {}
@@ -47,18 +47,34 @@ io.sockets.on('connection', (socket) => {
             createPlayer(uuid, socket)
         }
         console.log(uuid)
+        socket.emit('gameState', getGameState())
     })
 
     socket.on('move', ({ fromSpaceIndex, toSpaceIndex }) => {
         console.log('move', fromSpaceIndex, toSpaceIndex)
         const fromSpace = hive.getSpace(fromSpaceIndex)
         const toSpace = hive.getSpace(toSpaceIndex)
+        console.log('isValidMove', hive.isValidMove(fromSpace, toSpace))
         if (hive.isValidMove(fromSpace, toSpace)) {
-            socket.broadcast.emit('move', { fromSpaceIndex, toSpaceIndex })
+            hive.movePiece(fromSpace, toSpace)
+            socket.broadcast.emit('gameState', getGameState())
         }
+    })
+
+    socket.on('reset', () => {
+        hive.resetGame()
+        console.log('broadcast!')
+        io.emit('gameState', getGameState())
     })
 
     socket.on('disconnect', (data) => {
         disconnectPlayer(socket)
     })
 })
+
+function getGameState() {
+    return hive.getSpaces().map(({ index, pieces }) => ({
+        index,
+        pieces,
+    }))
+}
