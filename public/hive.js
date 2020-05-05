@@ -60,6 +60,14 @@ const hive = {
         this.setPiece(piece, toSpace)
     },
 
+    queenIsOnBoard(space) {
+        const { color } = space
+        return !!this.getBoardSpacesByPieceAttributes({
+            color,
+            type: types.BEE,
+        }).length
+    },
+
     mustPlayQueen({ color, type }) {
         const queenHasNotBeenPlayed =
             this.getBoardSpacesByPieceAttributes({ color, type: types.BEE })
@@ -75,6 +83,9 @@ const hive = {
     },
 
     wouldBreakOneHive(space) {
+        if (!this.isOnBoard(space)) {
+            return false
+        }
         const piece = this.removePiece(space)
         const boardPieces = this.getSpacesOnBoardWithPieces()
         if (boardPieces.length === 0) {
@@ -208,6 +219,11 @@ const hive = {
             get piece() {
                 if (this.pieceCount) {
                     return this.pieces[this.pieceCount - 1]
+                }
+            },
+            get secondPiece() {
+                if (this.pieceCount >= 2) {
+                    return this.pieces[this.pieceCount - 2]
                 }
             },
             get color() {
