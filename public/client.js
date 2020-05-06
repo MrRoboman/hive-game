@@ -165,9 +165,10 @@ function getScreenPosition(space) {
     return hive.isOnBoard(space) ? getOrientPosition(space) : getPosition(space)
 }
 
-function getStackPosition(space) {
+function getStackPosition(space, offset = 0) {
     const position = getScreenPosition(space)
-    return p5.Vector.add(position, createVector(0, -8 * (space.pieceCount - 1)))
+    const pieceCount = space.pieceCount + offset //min(0, space.pieceCount - 1)
+    return p5.Vector.add(position, createVector(0, -8 * pieceCount))
 }
 
 function isValidSpace(space) {
@@ -379,11 +380,32 @@ function drawAvailableSpaces() {
     availableStroke()
     hive.getAvailableSpaces().forEach(space => {
         // drawHexagon(getOrientPosition(space), radius)
-        drawHexIndent(getOrientPosition(space), radius, 6)
+        // drawHexIndent(getOrientPosition(space), radius, 6)
         // let pos = getOrientPosition(space)
         // pos.y -= space.pieceCount * 6
         // drawHexOutdent(pos, radius, 6, null, true)
+        drawHex3D(
+            getStackPosition(space),
+            radius,
+            6,
+            [0, 255, 0, 255],
+            [[0, 255, 0, 100]]
+        )
     })
+}
+
+function drawHexWireframe(pos, radius, strokeColor, fillColor) {
+    if (strokeColor) {
+        stroke(...strokeColor)
+    } else {
+        noStroke()
+    }
+    if (fillColor) {
+        fill(...fillColor)
+    } else {
+        noFill()
+    }
+    drawHexagon(pos, radius)
 }
 
 function drawPlayerPieces() {
@@ -463,11 +485,10 @@ function drawRisingHexes({
 
 function drawSelectionHex() {
     if (selected) {
-        const pos = hive.isOnBoard(selected)
-            ? getOrientPosition(selected)
-            : getPosition(selected)
-        selectedStroke()
-        drawHexagon(pos, radius)
+        const pos = getStackPosition(selected, -1)
+        // selectedStroke()
+        // drawHexagon(pos, radius)
+        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
     }
 }
 
@@ -477,6 +498,64 @@ function drawHexagon(pos, r) {
         const angle = (PI / 3) * i
         const x = pos.x + cos(angle) * r
         const y = pos.y + sin(angle) * r
+        vertex(x, y)
+    }
+    endShape()
+}
+
+function drawHex3D(pos, r, h, strokeColor, fillColors) {
+    if (strokeColor) {
+        stroke(...strokeColor)
+        strokeWeight(1)
+    } else {
+        noStroke()
+    }
+
+    const drawSide = (angle, fillColor) => {
+        if (fillColor) {
+            fill(...fillColor)
+        } else {
+            noFill()
+        }
+        beginShape()
+        x = pos.x + cos(angle) * r
+        y = pos.y + sin(angle) * r
+        let _x = x
+        let _y = y
+        vertex(x, y)
+        vertex(x, y - h)
+        x = pos.x + cos(angle + PI / 3) * r
+        y = pos.y + sin(angle + PI / 3) * r
+        vertex(x, y - h)
+        vertex(x, y)
+        vertex(_x, _y)
+        endShape()
+    }
+
+    fillColors = fillColors || []
+    drawSide(0, fillColors[0])
+    drawSide(PI / 3, fillColors[1] || fillColors[0])
+    drawSide((2 * PI) / 3, fillColors[2] || fillColors[0])
+
+    const fillColor = fillColors[3] || fillColors[0]
+    if (fillColor) {
+        fill(fillColor)
+    } else {
+        noFill()
+    }
+
+    if (strokeColor) {
+        stroke(...strokeColor)
+        strokeWeight(2)
+    } else {
+        noStroke()
+    }
+    // drawHexagon(pos, r)
+    beginShape()
+    for (let i = 0; i <= 6; i++) {
+        const angle = (PI / 3) * i
+        x = pos.x + cos(angle) * r
+        y = pos.y - h + sin(angle) * r
         vertex(x, y)
     }
     endShape()
