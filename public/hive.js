@@ -70,8 +70,9 @@ const hive = {
 
     mustPlayQueen({ color, type }) {
         const queenHasNotBeenPlayed =
-            this.getBoardSpacesByPieceAttributes({ color, type: types.BEE })
-                .length === 0
+            this.getPlayerSpacesWithPieces()
+                .filter(s => s.type === types.BEE)
+                .filter(s => s.color === color).length === 1
         const threePiecesHaveBeenPlayed =
             this.getBoardSpacesByPieceAttributes({ color }).length === 3
         const notCurrentlyPlayingQueen = type !== types.BEE
@@ -104,14 +105,14 @@ const hive = {
             return
         }
         seen.add(space)
-        this.getNeighborsWithPieces(space.index).forEach((neighbor) =>
+        this.getNeighborsWithPieces(space.index).forEach(neighbor =>
             this.getAllAdjacentSpacesWithPieces(neighbor, seen)
         )
         return Array.from(seen)
     },
 
     clearAvailableSpaces() {
-        this.getSpaces().forEach((s) => (s.isAvailable = false))
+        this.getSpaces().forEach(s => (s.isAvailable = false))
     },
 
     getSpaces() {
@@ -119,27 +120,27 @@ const hive = {
     },
 
     getSpacesWithPieces() {
-        return this.getSpaces().filter((space) => space.piece)
+        return this.getSpaces().filter(space => space.piece)
     },
 
     getPlayerSpaces() {
-        return this.getSpaces().filter((space) => !this.isOnBoard(space))
+        return this.getSpaces().filter(space => !this.isOnBoard(space))
     },
 
     getPlayerSpacesWithPieces() {
-        return this.getPlayerSpaces().filter((space) => space.piece)
+        return this.getPlayerSpaces().filter(space => space.piece)
     },
 
     getSpacesOnBoard() {
-        return this.getSpaces().filter((space) => this.isOnBoard(space))
+        return this.getSpaces().filter(space => this.isOnBoard(space))
     },
 
     getSpacesOnBoardWithPieces() {
-        return this.getSpacesOnBoard().filter((space) => space.piece)
+        return this.getSpacesOnBoard().filter(space => space.piece)
     },
 
     getBoardSpacesByPieceAttributes({ color, type }) {
-        return this.getSpacesOnBoardWithPieces().filter((space) => {
+        return this.getSpacesOnBoardWithPieces().filter(space => {
             const isCorrectColor = color === undefined || space.color === color
             const isCorrectType = type === undefined || space.type === type
             return isCorrectColor && isCorrectType
@@ -147,11 +148,11 @@ const hive = {
     },
 
     getAvailableSpaces() {
-        return this.getSpaces().filter((space) => space.isAvailable)
+        return this.getSpaces().filter(space => space.isAvailable)
     },
 
     getSpacesOnBoardByColor(color) {
-        return this.getSpacesOnBoard().filter((space) => space.color === color)
+        return this.getSpacesOnBoard().filter(space => space.color === color)
     },
 
     getSpace(index) {
@@ -198,7 +199,7 @@ const hive = {
     },
 
     getNeighborsWithPieces(index) {
-        return this.getNeighbors(index).filter((space) => space.piece)
+        return this.getNeighbors(index).filter(space => space.piece)
     },
 
     createSpaceAtIndex(index, pieces = []) {
@@ -284,16 +285,16 @@ const hive = {
     },
 
     includesIndex(spaces, index) {
-        return spaces.some((s) => this.hasIndex(s, index))
+        return spaces.some(s => this.hasIndex(s, index))
     },
 
     isSpaceIncluded(spaces, space) {
-        return spaces.some((s) => this.hasIndex(s, space.index))
+        return spaces.some(s => this.hasIndex(s, space.index))
     },
 
     subtractSpaces(spaces, minusSpaces) {
         const spaceSet = new Set(spaces)
-        minusSpaces.forEach((space) => spaceSet.delete(space))
+        minusSpaces.forEach(space => spaceSet.delete(space))
         return Array.from(spaceSet)
     },
 
@@ -332,14 +333,14 @@ const hive = {
         const myNeighbors = this.getNeighborhood(mySpaces)
         const theirNeighbors = this.getNeighborhood(theirSpaces)
         const availableSpaces = this.subtractSpaces(myNeighbors, theirNeighbors)
-        const availSpacesNoPieces = availableSpaces.filter((s) => !s.piece)
+        const availSpacesNoPieces = availableSpaces.filter(s => !s.piece)
         return availSpacesNoPieces
     },
 
     //test
     markSpacesAvailableForPlacement(fromSpace) {
         const spaces = this.getPlaceableSpaces(fromSpace)
-        spaces.forEach((s) => (s.isAvailable = true))
+        spaces.forEach(s => (s.isAvailable = true))
     },
 
     safeIndex(i) {
@@ -452,7 +453,7 @@ const hive = {
 
     antMove(space) {
         const selected = space
-        const recurse = (_space) => {
+        const recurse = _space => {
             const neighbors = this.getNeighbors(_space.index)
             neighbors.forEach((neighbor, i) => {
                 if (this.canDoGroundMove(selected, neighbors, i)) {
