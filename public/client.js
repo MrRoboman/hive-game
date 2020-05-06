@@ -165,6 +165,11 @@ function getScreenPosition(space) {
     return hive.isOnBoard(space) ? getOrientPosition(space) : getPosition(space)
 }
 
+function getStackPosition(space) {
+    const position = getScreenPosition(space)
+    return p5.Vector.add(position, createVector(0, -8 * (space.pieceCount - 1)))
+}
+
 function isValidSpace(space) {
     if (!space.piece) {
         return false
@@ -206,22 +211,12 @@ function dragLogic() {
             return
         }
         if (!draggingSpace) {
-            const availableSpaces = hive.getAvailableSpaces()
-            for (let i = 0; i < availableSpaces.length; i++) {
-                const space = availableSpaces[i]
+            const playerSpaces = hive.getPlayerSpacesWithPieces()
+            for (let i = 0; i < playerSpaces.length; i++) {
+                const space = playerSpaces[i]
                 const position = getScreenPosition(space)
-                if (didClickSpace(mousePos, position)) {
-                    hive.movePiece(selected, space)
-                    unselectSpace()
-                    hive.clearAvailableSpaces()
-                    waitForRelease = true
-                    return
-                }
-            }
-
-            hive.getSpaces().forEach(space => {
-                const position = getScreenPosition(space)
-                if (didClickSpace(mousePos, position)) {
+                const stackPosition = getStackPosition(space)
+                if (didClickSpace(mousePos, stackPosition)) {
                     if (isValidSpace(space)) {
                         if (selected === space) {
                             justSelected = false
@@ -232,18 +227,55 @@ function dragLogic() {
                         draggingSpace = space
                         dragOffset = p5.Vector.sub(position, mousePos)
                         wasDragged = false
+                        hive.clearAvailableSpaces()
+                        markAvailable(selected)
+                        return
                     }
                 }
-            })
-            hive.clearAvailableSpaces()
-            if (selected) {
-                markAvailable(selected)
+            }
+
+            const boardSpaces = getBoardSpacesFromBottomToTop()
+            for (let i = 0; i < boardSpaces.length; i++) {
+                const space = boardSpaces[i]
+                // When Beetle is selected, some board spaces will be marked available and we want to move to it instead of select the piece.
+                if (space.isAvailable) continue
+                const position = getScreenPosition(space)
+                const stackPosition = getStackPosition(space)
+                if (didClickSpace(mousePos, stackPosition)) {
+                    if (isValidSpace(space)) {
+                        if (selected === space) {
+                            justSelected = false
+                        } else {
+                            justSelected = true
+                        }
+                        selectSpace(space)
+                        draggingSpace = space
+                        dragOffset = p5.Vector.sub(position, mousePos)
+                        wasDragged = false
+                        hive.clearAvailableSpaces()
+                        markAvailable(selected)
+                        return
+                    }
+                }
+            }
+
+            const availableSpaces = hive.getAvailableSpaces()
+            for (let i = 0; i < availableSpaces.length; i++) {
+                const space = availableSpaces[i]
+                const position = getStackPosition(space)
+                if (didClickSpace(mousePos, position)) {
+                    hive.movePiece(selected, space)
+                    unselectSpace()
+                    hive.clearAvailableSpaces()
+                    waitForRelease = true
+                    return
+                }
             }
         }
     } else {
         waitForRelease = false
         if (selected) {
-            if (didClickSpace(mousePos, getScreenPosition(selected))) {
+            if (didClickSpace(mousePos, getStackPosition(selected))) {
                 if (!justSelected) {
                     unselectSpace()
                     hive.clearAvailableSpaces()
@@ -254,11 +286,10 @@ function dragLogic() {
             const availableSpaces = hive.getAvailableSpaces()
             for (let i = 0; i < availableSpaces.length; i++) {
                 const space = availableSpaces[i]
-                const pos = getOrientPosition(space)
-                if (didClickSpace(mousePos, pos)) {
+                const pos = getStackPosition(space)
+                if (wasDragged && didClickSpace(mousePos, pos)) {
                     // emitMove(selected, space)
                     hive.movePiece(draggingSpace, space)
-                    didSetPiece = true
                     // checkForWin()
                     // nextTurn()
                     // return
@@ -323,6 +354,16 @@ function getBoardSpacesFromTopToBottom() {
         const posB = getScreenPosition(spaceB)
         if (posA.y < posB.y) return -1
         if (posA.y > posB.y) return 1
+        return 0
+    })
+}
+
+function getBoardSpacesFromBottomToTop() {
+    return hive.getSpacesOnBoardWithPieces().sort((spaceA, spaceB) => {
+        const posA = getScreenPosition(spaceA)
+        const posB = getScreenPosition(spaceB)
+        if (posA.y < posB.y) return 1
+        if (posA.y > posB.y) return -1
         return 0
     })
 }
