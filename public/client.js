@@ -114,7 +114,7 @@ function createPlayerSpacePosition(space) {
     const localIndex = space.index % typeCount
     const x =
         width / 2 - radius * typeCount + radius * halfTypeCount * localIndex
-    const y = side === BOTTOM ? radius * 1.2 : height - radius * 1.2
+    const y = side === BOTTOM ? radius * 2 : height - radius * 1.2
     return createVector(x, y)
 }
 
@@ -280,7 +280,11 @@ function mouseDragged() {
 function drawDrag() {
     if (draggingSpace) {
         let mousePos = createVector(mouseX, mouseY)
-        const pos = p5.Vector.add(mousePos, dragOffset)
+        let pos = p5.Vector.add(mousePos, dragOffset)
+        pos = p5.Vector.add(
+            pos,
+            createVector(0, -8 * (draggingSpace.pieceCount - 1))
+        )
         drawPiece(draggingSpace.piece, pos, radius)
     }
 }
@@ -313,15 +317,20 @@ function dragScreen() {
     }
 }
 
+function getBoardSpacesFromTopToBottom() {
+    return hive.getSpacesOnBoardWithPieces().sort((spaceA, spaceB) => {
+        const posA = getScreenPosition(spaceA)
+        const posB = getScreenPosition(spaceB)
+        if (posA.y < posB.y) return -1
+        if (posA.y > posB.y) return 1
+        return 0
+    })
+}
+
 function drawBoardPieces() {
-    hive.getSpacesOnBoardWithPieces().forEach(space => {
-        if (space === draggingSpace) {
-            if (space.secondPiece) {
-                drawPiece(space.secondPiece, getOrientPosition(space), radius)
-            }
-        } else {
-            drawPiece(space.piece, getOrientPosition(space), radius)
-        }
+    getBoardSpacesFromTopToBottom().forEach(space => {
+        const dontDrawTopPiece = space === draggingSpace
+        drawPieces(space, dontDrawTopPiece)
     })
 }
 
@@ -341,13 +350,15 @@ function drawPlayerPieces() {
         if (space === draggingSpace) {
             if (space.pieceCount >= 2) {
                 const pos = getScreenPosition(space)
-                drawPiece(space.secondPiece, pos, radius)
-                drawPieceCount(space, -1)
+                // drawPiece(space.secondPiece, pos, radius)
+                drawPieces(space, true)
+                // drawPieceCount(space, -1)
             }
         } else {
             const pos = getScreenPosition(space)
-            drawPiece(space.piece, pos, radius)
-            drawPieceCount(space)
+            // drawPiece(space.piece, pos, radius)
+            drawPieces(space)
+            // drawPieceCount(space)
         }
     })
 }
@@ -366,6 +377,16 @@ function drawPiece(piece, pos, rad) {
     // drawHexagon(pos, rad)
     drawHexOutdent(pos, rad, 6, getColorValue(piece.color))
     drawBug(piece.type, p5.Vector.add(pos, createVector(0, -6)), rad)
+}
+
+function drawPieces(space, upToSecondPiece) {
+    const len = upToSecondPiece ? space.pieces.length - 1 : space.pieces.length
+    for (let i = 0; i < len; i++) {
+        const piece = space.pieces[i]
+        let pos = getScreenPosition(space)
+        pos = p5.Vector.sub(pos, createVector(0, 8 * i))
+        drawPiece(piece, pos, radius)
+    }
 }
 
 function drawRisingHexes({

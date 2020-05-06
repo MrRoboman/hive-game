@@ -62,10 +62,11 @@ const hive = {
 
     queenIsOnBoard(space) {
         const { color } = space
-        return !!this.getBoardSpacesByPieceAttributes({
-            color,
-            type: types.BEE,
-        }).length
+        return (
+            this.getPlayerSpacesWithPieces()
+                .filter(s => s.type === types.BEE)
+                .filter(s => s.color === color).length === 0
+        )
     },
 
     mustPlayQueen({ color, type }) {
