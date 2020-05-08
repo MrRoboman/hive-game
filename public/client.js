@@ -140,11 +140,13 @@ function draw() {
     // dragScreen()
     background(100)
 
-    drawBoardPieces()
-    drawAvailableSpaces()
-    drawPlayerPieces()
-    drawDrag()
-    drawSelectionHex()
+    // drawBoardPieces()
+    // drawAvailableSpaces()
+    // drawPlayerPieces()
+    // drawDrag()
+    // drawSelectionHex()
+
+    drawHexesInOrder()
 
     // const pos = getOrientPosition(hive.getSpace([0, 0]))
     // drawRisingHexes({
@@ -349,6 +351,55 @@ function dragScreen() {
     }
 }
 
+function drawHexesInOrder() {
+    const boardSpaces = hive.getSpacesOnBoardWithPieces()
+    const availableSpaces = hive.getAvailableSpaces()
+    const spaces = boardSpaces.concat(availableSpaces).sort(topToBottom)
+    spaces.forEach(space => {
+        const dontDrawTopPiece = space === draggingSpace
+        drawPieces(space, dontDrawTopPiece)
+        if (space.isAvailable) {
+            drawAvailableHex(space)
+        }
+        if (space !== draggingSpace && space === selected) {
+            const pos = getStackPosition(selected, -1)
+            drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
+        }
+    })
+    // const playerSpaces = hive.getPlayerSpacesWithPieces()
+    // playerSpaces.forEach(space => {
+        
+    // })
+    drawPlayerPieces()
+    drawDrag()
+
+    if (draggingSpace) {
+        let mousePos = createVector(mouseX, mouseY)
+        let pos = p5.Vector.add(mousePos, dragOffset)
+        pos = p5.Vector.add(
+            pos,
+            createVector(0, -8 * (draggingSpace.pieceCount - 1))
+        )
+        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
+    }
+
+    // board spaces
+    // if one of the board spaces is available draw that 
+    // if board space selected draw
+    // draw player spaces
+    // if player space is selected draw
+
+
+}
+
+function topToBottom(spaceA, spaceB) {
+        const posA = getScreenPosition(spaceA)
+        const posB = getScreenPosition(spaceB)
+        if (posA.y < posB.y) return -1
+        if (posA.y > posB.y) return 1
+        return 0
+}
+
 function getBoardSpacesFromTopToBottom() {
     return hive.getSpacesOnBoardWithPieces().sort((spaceA, spaceB) => {
         const posA = getScreenPosition(spaceA)
@@ -376,6 +427,16 @@ function drawBoardPieces() {
     })
 }
 
+function drawAvailableHex(space) {
+    drawHex3D(
+        getStackPosition(space),
+        radius,
+        6,
+        [0, 255, 0, 255],
+        [[0, 255, 0, 100]]
+    )
+}
+
 function drawAvailableSpaces() {
     availableStroke()
     hive.getAvailableSpaces().forEach(space => {
@@ -384,13 +445,7 @@ function drawAvailableSpaces() {
         // let pos = getOrientPosition(space)
         // pos.y -= space.pieceCount * 6
         // drawHexOutdent(pos, radius, 6, null, true)
-        drawHex3D(
-            getStackPosition(space),
-            radius,
-            6,
-            [0, 255, 0, 255],
-            [[0, 255, 0, 100]]
-        )
+        drawAvailableHex(space)
     })
 }
 
@@ -484,10 +539,17 @@ function drawRisingHexes({
 }
 
 function drawSelectionHex() {
-    if (selected) {
+    if (draggingSpace) {
+        let mousePos = createVector(mouseX, mouseY)
+        let pos = p5.Vector.add(mousePos, dragOffset)
+        pos = p5.Vector.add(
+            pos,
+            createVector(0, -8 * (draggingSpace.pieceCount - 1))
+        )
+        // drawPiece(draggingSpace.piece, pos, radius)
+        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
+    } else if (selected) {
         const pos = getStackPosition(selected, -1)
-        // selectedStroke()
-        // drawHexagon(pos, radius)
         drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
     }
 }
