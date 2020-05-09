@@ -63,6 +63,13 @@ let selectedSpace = null
 
 // TODO: Add turns
 
+const BROKEN_RULE_NO_PIECE = 'Space has no piece'
+const BROKEN_RULE_NOT_MY_TURN = 'Not my turn'
+const BROKEN_RULE_NO_MOVES_BEFORE_QUEEN =
+    'Cannot move pieces until Queen Bee is played'
+const BROKEN_RULE_ONE_HIVE = 'Must maintain one hive'
+const BROKEN_RULE_MUST_PLAY_QUEEN = 'Must play Queen Bee this turn'
+
 const TOP = 0
 const BOTTOM = 1
 
@@ -100,7 +107,7 @@ function getFillColors(color) {
 }
 
 // Cache positions by space index
-const spacePositions = {}
+let spacePositions = {}
 function getPosition(space) {
     if (!spacePositions[space.index]) {
         if (hive.isOnBoard(space)) {
@@ -185,12 +192,12 @@ function draw() {
     drawHexesInOrder()
 }
 
-const BROKEN_RULE_NO_PIECE = 'Space has no piece'
-const BROKEN_RULE_NOT_MY_TURN = 'Not my turn'
-const BROKEN_RULE_NO_MOVES_BEFORE_QUEEN =
-    'Cannot move pieces until Queen Bee is played'
-const BROKEN_RULE_ONE_HIVE = 'Must maintain one hive'
-const BROKEN_RULE_MUST_PLAY_QUEEN = 'Must play Queen Bee this turn'
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight)
+    spacePositions = {}
+    orientation.x = windowWidth / 2
+    orientation.y = windowHeight / 2
+}
 
 function checkForBrokenRule(space) {
     if (!space.piece) {
