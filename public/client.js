@@ -56,8 +56,10 @@ let waitForRelease = false
 let justSelected = false
 
 const radius = 40
+const STACK_HEIGHT = 8
+const PIECE_HEIGHT = 6
 
-let selected = null
+let selectedSpace = null
 
 // TODO: Add turns
 
@@ -68,10 +70,22 @@ const colorInfo = {
     [hive.colors.WHITE]: {
         name: 'White',
         value: 240,
+        fillColors: [
+            [204, 204, 204],
+            [153, 153, 153],
+            [102, 102, 102],
+            [255, 255, 255],
+        ],
     },
     [hive.colors.BLACK]: {
         name: 'Black',
         value: 35,
+        fillColors: [
+            [102, 102, 102],
+            [51, 51, 51],
+            [0, 0, 0],
+            [0, 0, 0],
+        ],
     },
 }
 function getColorName(color) {
@@ -81,6 +95,11 @@ function getColorValue(color) {
     return colorInfo[color].value
 }
 
+function getFillColors(color) {
+    return colorInfo[color].fillColors
+}
+
+// Cache positions by space index
 const spacePositions = {}
 function getPosition(space) {
     if (!spacePositions[space.index]) {
@@ -94,8 +113,24 @@ function getPosition(space) {
 }
 
 function getOrientPosition(space) {
-    // console.log(getPosition(space))
     return p5.Vector.add(getPosition(space), orientation)
+}
+
+function getScreenPosition(space) {
+    return hive.isOnBoard(space) ? getOrientPosition(space) : getPosition(space)
+}
+
+function getStackPosition(space, offset = 0) {
+    const position = getScreenPosition(space)
+    const pieceCount = space.pieceCount + offset
+    const stackPos = createVector(0, STACK_HEIGHT * pieceCount)
+    return p5.Vector.sub(position, stackPos)
+}
+
+function getStackPositionFromBottom(space, offset = 0) {
+    const position = getScreenPosition(space)
+    const stackPos = createVector(0, STACK_HEIGHT * offset)
+    return p5.Vector.sub(position, stackPos)
 }
 
 function createBoardSpacePosition(space) {
@@ -138,7 +173,8 @@ let f = 0
 function draw() {
     dragLogic()
     // dragScreen()
-    background(100)
+    // background(100)
+    drawBackground()
 
     // drawBoardPieces()
     // drawAvailableSpaces()
@@ -147,61 +183,45 @@ function draw() {
     // drawSelectionHex()
 
     drawHexesInOrder()
-
-    // const pos = getOrientPosition(hive.getSpace([0, 0]))
-    // drawRisingHexes({
-    //     pos,
-    //     h: 0,
-    //     hexCount: 4,
-    //     rad: radius,
-    //     targetRad: 00,
-    //     baseAlpha: 0,
-    //     targetAlpha: 150,
-    //     totalFrames: 150,
-    //     frame: f++,
-    // })
-    //     // noLoop()
 }
 
-function getScreenPosition(space) {
-    return hive.isOnBoard(space) ? getOrientPosition(space) : getPosition(space)
-}
+const BROKEN_RULE_NO_PIECE = 'Space has no piece'
+const BROKEN_RULE_NOT_MY_TURN = 'Not my turn'
+const BROKEN_RULE_NO_MOVES_BEFORE_QUEEN =
+    'Cannot move pieces until Queen Bee is played'
+const BROKEN_RULE_ONE_HIVE = 'Must maintain one hive'
+const BROKEN_RULE_MUST_PLAY_QUEEN = 'Must play Queen Bee this turn'
 
-function getStackPosition(space, offset = 0) {
-    const position = getScreenPosition(space)
-    const pieceCount = space.pieceCount + offset //min(0, space.pieceCount - 1)
-    return p5.Vector.add(position, createVector(0, -8 * pieceCount))
-}
-
-function isValidSpace(space) {
+function checkForBrokenRule(space) {
     if (!space.piece) {
-        return false
+        return BROKEN_RULE_NO_PIECE
     }
 
     // if is my turn
 
     if (hive.isOnBoard(space)) {
         if (!hive.queenIsOnBoard(space)) {
-            console.log('no')
-            return false
+            return BROKEN_RULE_NO_MOVES_BEFORE_QUEEN
         }
         if (hive.wouldBreakOneHive(space)) {
-            console.log('Breaks one hive rule!')
-            return false
+            return BROKEN_RULE_ONE_HIVE
         }
     } else {
         if (hive.mustPlayQueen(space)) {
-            console.log('Must play queen')
-            return false
+            return BROKEN_RULE_MUST_PLAY_QUEEN
         }
     }
 
-    return true
+    return null
 }
 
-function markAvailable(space) {
+function handleBrokenRule(brokenRule) {
+    console.log(brokenRule)
+}
+
+function markSpacesAvailable(space) {
     if (hive.isOnBoard(space)) {
-        hive.setSpacesAvailableByInsect(space)
+        hive.markSpacesAvailableForMovement(space)
     } else {
         hive.markSpacesAvailableForPlacement(space)
     }
@@ -220,45 +240,56 @@ function dragLogic() {
                 const position = getScreenPosition(space)
                 const stackPosition = getStackPosition(space)
                 if (didClickSpace(mousePos, stackPosition)) {
-                    if (isValidSpace(space)) {
-                        if (selected === space) {
-                            justSelected = false
-                        } else {
-                            justSelected = true
-                        }
-                        selectSpace(space)
-                        draggingSpace = space
-                        dragOffset = p5.Vector.sub(position, mousePos)
-                        wasDragged = false
-                        hive.clearAvailableSpaces()
-                        markAvailable(selected)
+                    const brokenRule = checkForBrokenRule(space)
+                    if (brokenRule) {
+                        handleBrokenRule(brokenRule)
+                        waitForRelease = true
                         return
                     }
+                    if (selectedSpace === space) {
+                        justSelected = false
+                    } else {
+                        justSelected = true
+                    }
+                    selectedSpace = space
+                    draggingSpace = space
+                    dragOffset = p5.Vector.sub(position, mousePos)
+                    wasDragged = false
+                    hive.clearAvailableSpaces()
+                    markSpacesAvailable(selectedSpace)
+                    return
                 }
             }
 
-            const boardSpaces = getBoardSpacesFromBottomToTop()
+            const boardSpaces = hive
+                .getSpacesOnBoardWithPieces()
+                .sort(bottomToTop)
             for (let i = 0; i < boardSpaces.length; i++) {
                 const space = boardSpaces[i]
-                // When Beetle is selected, some board spaces will be marked available and we want to move to it instead of select the piece.
+                // When Beetle is selectedSpace, some board spaces will be marked available
+                // and we want to move to it instead of select the piece.
                 if (space.isAvailable) continue
                 const position = getScreenPosition(space)
                 const stackPosition = getStackPosition(space)
                 if (didClickSpace(mousePos, stackPosition)) {
-                    if (isValidSpace(space)) {
-                        if (selected === space) {
-                            justSelected = false
-                        } else {
-                            justSelected = true
-                        }
-                        selectSpace(space)
-                        draggingSpace = space
-                        dragOffset = p5.Vector.sub(position, mousePos)
-                        wasDragged = false
-                        hive.clearAvailableSpaces()
-                        markAvailable(selected)
+                    const brokenRule = checkForBrokenRule(space)
+                    if (brokenRule) {
+                        handleBrokenRule(brokenRule)
+                        waitForRelease = true
                         return
                     }
+                    if (selectedSpace === space) {
+                        justSelected = false
+                    } else {
+                        justSelected = true
+                    }
+                    selectedSpace = space
+                    draggingSpace = space
+                    dragOffset = p5.Vector.sub(position, mousePos)
+                    wasDragged = false
+                    hive.clearAvailableSpaces()
+                    markSpacesAvailable(selectedSpace)
+                    return
                 }
             }
 
@@ -267,20 +298,23 @@ function dragLogic() {
                 const space = availableSpaces[i]
                 const position = getStackPosition(space)
                 if (didClickSpace(mousePos, position)) {
-                    hive.movePiece(selected, space)
-                    unselectSpace()
+                    // emitMove(selectedSpace, space)
+                    hive.movePiece(selectedSpace, space)
+                    selectedSpace = null
                     hive.clearAvailableSpaces()
                     waitForRelease = true
+                    // checkForWin()
+                    // nextTurn()
                     return
                 }
             }
         }
     } else {
         waitForRelease = false
-        if (selected) {
-            if (didClickSpace(mousePos, getStackPosition(selected))) {
+        if (selectedSpace) {
+            if (didClickSpace(mousePos, getStackPosition(selectedSpace))) {
                 if (!justSelected) {
-                    unselectSpace()
+                    selectedSpace = null
                     hive.clearAvailableSpaces()
                 }
             }
@@ -291,7 +325,7 @@ function dragLogic() {
                 const space = availableSpaces[i]
                 const pos = getStackPosition(space)
                 if (wasDragged && didClickSpace(mousePos, pos)) {
-                    // emitMove(selected, space)
+                    // emitMove(selectedSpace, space)
                     hive.movePiece(draggingSpace, space)
                     // checkForWin()
                     // nextTurn()
@@ -300,7 +334,7 @@ function dragLogic() {
             }
             draggingSpace = null
             if (wasDragged) {
-                unselectSpace()
+                selectedSpace = null
                 hive.clearAvailableSpaces()
             }
         }
@@ -313,27 +347,13 @@ function mouseDragged() {
 
 function drawDrag() {
     if (draggingSpace) {
-        let mousePos = createVector(mouseX, mouseY)
-        let pos = p5.Vector.add(mousePos, dragOffset)
-        pos = p5.Vector.add(
-            pos,
-            createVector(0, -8 * (draggingSpace.pieceCount - 1))
-        )
-        drawPiece(draggingSpace.piece, pos, radius)
+        const mousePos = createVector(mouseX, mouseY)
+        const pos = p5.Vector.add(mousePos, dragOffset)
+        const pieceCount = draggingSpace.pieceCount - 1
+        const stackPos = createVector(0, STACK_HEIGHT * pieceCount)
+        const position = p5.Vector.sub(pos, stackPos)
+        drawPiece(draggingSpace.piece, position, radius)
     }
-}
-
-function getSpacesWithPiecesAndScreenPositions() {
-    const playerSpaces = hive.getPlayerSpacesWithPieces()
-    const boardSpaces = hive.getSpacesOnBoardWithPieces()
-    const spaces = []
-    playerSpaces.forEach(space =>
-        spaces.push({ space: space, pos: getPosition(space) })
-    )
-    boardSpaces.forEach(space =>
-        spaces.push({ space: space, pos: getOrientPosition(space) })
-    )
-    return spaces
 }
 
 function dragScreen() {
@@ -351,6 +371,18 @@ function dragScreen() {
     }
 }
 
+function drawBackground() {
+    background(51, 153, 153)
+    // const pos = getScreenPosition(hive.getSpace([0, 0]))
+    // drawIndented(pos, radius, 4, [
+    //     [157, 95, 22],
+    //     [153, 102, 0],
+    //     [153, 102, 0],
+    //     [153, 102, 0],
+    // ])
+    // drawHexIndent(getScreenPosition(hive.getSpace([0, 0])), radius, 4)
+}
+
 function drawHexesInOrder() {
     const boardSpaces = hive.getSpacesOnBoardWithPieces()
     const availableSpaces = hive.getAvailableSpaces()
@@ -361,77 +393,60 @@ function drawHexesInOrder() {
         if (space.isAvailable) {
             drawAvailableHex(space)
         }
-        if (space !== draggingSpace && space === selected) {
-            const pos = getStackPosition(selected, -1)
-            drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
-        }
     })
-    // const playerSpaces = hive.getPlayerSpacesWithPieces()
-    // playerSpaces.forEach(space => {
-        
-    // })
+
     drawPlayerPieces()
     drawDrag()
 
     if (draggingSpace) {
-        let mousePos = createVector(mouseX, mouseY)
-        let pos = p5.Vector.add(mousePos, dragOffset)
-        pos = p5.Vector.add(
-            pos,
-            createVector(0, -8 * (draggingSpace.pieceCount - 1))
+        const mousePos = createVector(mouseX, mouseY)
+        const pos = p5.Vector.add(mousePos, dragOffset)
+        const pieceCount = draggingSpace.pieceCount - 1
+        const stackPos = createVector(0, STACK_HEIGHT * pieceCount)
+        const position = p5.Vector.sub(pos, stackPos)
+        drawHex3D(
+            position,
+            radius,
+            PIECE_HEIGHT,
+            [255, 0, 0],
+            [[255, 0, 0, 40]]
         )
-        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
+    } else if (selectedSpace) {
+        const pos = getStackPosition(selectedSpace, -1)
+        drawHex3D(pos, radius, PIECE_HEIGHT, [255, 0, 0], [[255, 0, 0, 40]])
     }
-
-    // board spaces
-    // if one of the board spaces is available draw that 
-    // if board space selected draw
-    // draw player spaces
-    // if player space is selected draw
-
-
 }
 
 function topToBottom(spaceA, spaceB) {
-        const posA = getScreenPosition(spaceA)
-        const posB = getScreenPosition(spaceB)
-        if (posA.y < posB.y) return -1
-        if (posA.y > posB.y) return 1
-        return 0
+    const posA = getScreenPosition(spaceA)
+    const posB = getScreenPosition(spaceB)
+    if (posA.y < posB.y) return -1
+    if (posA.y > posB.y) return 1
+    return 0
 }
 
-function getBoardSpacesFromTopToBottom() {
-    return hive.getSpacesOnBoardWithPieces().sort((spaceA, spaceB) => {
-        const posA = getScreenPosition(spaceA)
-        const posB = getScreenPosition(spaceB)
-        if (posA.y < posB.y) return -1
-        if (posA.y > posB.y) return 1
-        return 0
-    })
-}
-
-function getBoardSpacesFromBottomToTop() {
-    return hive.getSpacesOnBoardWithPieces().sort((spaceA, spaceB) => {
-        const posA = getScreenPosition(spaceA)
-        const posB = getScreenPosition(spaceB)
-        if (posA.y < posB.y) return 1
-        if (posA.y > posB.y) return -1
-        return 0
-    })
+function bottomToTop(spaceA, spaceB) {
+    const posA = getScreenPosition(spaceA)
+    const posB = getScreenPosition(spaceB)
+    if (posA.y < posB.y) return 1
+    if (posA.y > posB.y) return -1
+    return 0
 }
 
 function drawBoardPieces() {
-    getBoardSpacesFromTopToBottom().forEach(space => {
-        const dontDrawTopPiece = space === draggingSpace
-        drawPieces(space, dontDrawTopPiece)
-    })
+    hive.getSpacesOnBoardWithPieces()
+        .sort(topToBottom)
+        .forEach(space => {
+            const dontDrawTopPiece = space === draggingSpace
+            drawPieces(space, dontDrawTopPiece)
+        })
 }
 
 function drawAvailableHex(space) {
     drawHex3D(
         getStackPosition(space),
         radius,
-        6,
+        PIECE_HEIGHT,
         [0, 255, 0, 255],
         [[0, 255, 0, 100]]
     )
@@ -440,117 +455,116 @@ function drawAvailableHex(space) {
 function drawAvailableSpaces() {
     availableStroke()
     hive.getAvailableSpaces().forEach(space => {
-        // drawHexagon(getOrientPosition(space), radius)
-        // drawHexIndent(getOrientPosition(space), radius, 6)
-        // let pos = getOrientPosition(space)
-        // pos.y -= space.pieceCount * 6
-        // drawHexOutdent(pos, radius, 6, null, true)
         drawAvailableHex(space)
     })
 }
 
-function drawHexWireframe(pos, radius, strokeColor, fillColor) {
-    if (strokeColor) {
-        stroke(...strokeColor)
-    } else {
-        noStroke()
+function drawIndented(pos, r, h, fillColors) {
+    const hFraction = h * 0.6
+    let x, y, angle
+
+    fill(...fillColors[0])
+    beginShape()
+    for (let i = 0; i <= 6; i++) {
+        const angle = (PI / 3) * i
+        x = pos.x + cos(angle) * r
+        y = pos.y + sin(angle) * r
+        vertex(x, y)
     }
-    if (fillColor) {
-        fill(...fillColor)
-    } else {
-        noFill()
-    }
-    drawHexagon(pos, radius)
+    endShape()
+
+    fill(...fillColors[1])
+    angle = PI
+    beginShape()
+    x = pos.x + cos(angle) * r
+    y = pos.y + sin(angle) * r
+    vertex(x, y)
+    vertex(x + cos(PI / 3) * hFraction, y + sin(PI / 3) * hFraction)
+    x = pos.x + cos(angle + PI / 3) * r
+    y = pos.y + sin(angle + PI / 3) * r
+    vertex(x, y + h)
+    vertex(x, y)
+    endShape()
+
+    fill(...fillColors[2])
+    angle = PI + PI / 3
+    beginShape()
+    x = pos.x + cos(angle) * r
+    y = pos.y + sin(angle) * r
+    vertex(x, y)
+    vertex(x, y + h)
+    x = pos.x + cos(angle + PI / 3) * r
+    y = pos.y + sin(angle + PI / 3) * r
+    vertex(x, y + h)
+    vertex(x, y)
+    endShape()
+
+    fill(...fillColors[3])
+    angle = 2 * PI - PI / 3
+    beginShape()
+    x = pos.x + cos(angle) * r
+    y = pos.y + sin(angle) * r
+    vertex(x, y)
+    vertex(x, y + h)
+    x = pos.x + cos(angle + PI / 3) * r
+    y = pos.y + sin(angle + PI / 3) * r
+    vertex(x + cos((2 * PI) / 3) * hFraction, y + sin((2 * PI) / 3) * hFraction)
+    vertex(x, y)
+    endShape()
 }
 
 function drawPlayerPieces() {
     hive.getPlayerSpacesWithPieces().forEach(space => {
         if (space === draggingSpace) {
             if (space.pieceCount >= 2) {
-                const pos = getScreenPosition(space)
-                // drawPiece(space.secondPiece, pos, radius)
-                drawPieces(space, true)
-                // drawPieceCount(space, -1)
+                const dontDrawTopPiece = true
+                drawPieces(space, dontDrawTopPiece)
             }
         } else {
-            const pos = getScreenPosition(space)
-            // drawPiece(space.piece, pos, radius)
             drawPieces(space)
-            // drawPieceCount(space)
         }
     })
 }
 
-function drawPieceCount(space, offset = 0) {
-    const pos = getScreenPosition(space)
-    const x = pos.x + radius * 0.8
-    const y = pos.y + radius * 0.8 * -0.7
-    noStroke()
-    text(space.pieceCount + offset, x, y)
-}
-
 function drawPiece(piece, pos, rad) {
-    fill(getColorValue(piece.color))
     noStroke()
-    // drawHexagon(pos, rad)
-    drawHexOutdent(pos, rad, 6, getColorValue(piece.color))
-    drawBug(piece.type, p5.Vector.add(pos, createVector(0, -6)), rad)
+    const fillColors = getFillColors(piece.color)
+    drawHex3D(pos, rad, PIECE_HEIGHT, null, fillColors)
+    drawBug(piece.type, p5.Vector.add(pos, createVector(0, -PIECE_HEIGHT)), rad)
 }
 
-function drawPieces(space, upToSecondPiece) {
-    const len = upToSecondPiece ? space.pieces.length - 1 : space.pieces.length
+function drawPieces(space, dontDrawTopPiece) {
+    const len = dontDrawTopPiece ? space.pieces.length - 1 : space.pieces.length
     for (let i = 0; i < len; i++) {
         const piece = space.pieces[i]
-        let pos = getScreenPosition(space)
-        pos = p5.Vector.sub(pos, createVector(0, 8 * i))
-        drawPiece(piece, pos, radius)
-    }
-}
-
-function drawRisingHexes({
-    pos,
-    h,
-    hexCount,
-    rad,
-    targetRad,
-    baseAlpha,
-    targetAlpha,
-    totalFrames,
-    frame,
-}) {
-    // stroke(0, 255, 0)
-    // noFill()
-    // drawHexagon(pos, rad)
-    noStroke()
-    for (let i = 0; i < hexCount; i++) {
-        const frameOffset = totalFrames / hexCount
-        frame = frame + (totalFrames / hexCount) * i
-        frame = frame % totalFrames
-        const percentComplete = frame / totalFrames
-        const maxHeight = pos.y - h
-        const y = map(percentComplete, 0, 1, pos.y, maxHeight)
-        const position = createVector(pos.x, y)
-        const alpha = map(percentComplete, 0, 1, baseAlpha, targetAlpha)
-        fill(0, 255, 0, alpha)
-        const r = map(percentComplete, 0, 1, rad, targetRad)
-        drawHexagon(position, r)
-        // drawHexagon(pos, r)
+        const position = getStackPositionFromBottom(space, i)
+        drawPiece(piece, position, radius)
     }
 }
 
 function drawSelectionHex() {
     if (draggingSpace) {
-        let mousePos = createVector(mouseX, mouseY)
-        let pos = p5.Vector.add(mousePos, dragOffset)
-        pos = p5.Vector.add(
-            pos,
-            createVector(0, -8 * (draggingSpace.pieceCount - 1))
+        const mousePos = createVector(mouseX, mouseY)
+        const pos = p5.Vector.add(mousePos, dragOffset)
+        const pieceCount = draggingSpace.pieceCount - 1
+        const stackPos = createVector(0, STACK_HEIGHT * pieceCount)
+        const position = p5.Vector.sub(pos, stackPos)
+        drawHex3D(
+            position,
+            radius,
+            PIECE_HEIGHT,
+            [255, 0, 0],
+            [[255, 0, 0, 40]]
         )
-        // drawPiece(draggingSpace.piece, pos, radius)
-        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
-    } else if (selected) {
-        const pos = getStackPosition(selected, -1)
-        drawHex3D(pos, radius, 6, [255, 0, 0], [[255, 0, 0, 40]])
+    } else if (selectedSpace) {
+        const position = getStackPosition(selectedSpace, -1)
+        drawHex3D(
+            position,
+            radius,
+            PIECE_HEIGHT,
+            [255, 0, 0],
+            [[255, 0, 0, 40]]
+        )
     }
 }
 
@@ -612,63 +626,6 @@ function drawHex3D(pos, r, h, strokeColor, fillColors) {
     } else {
         noStroke()
     }
-    // drawHexagon(pos, r)
-    beginShape()
-    for (let i = 0; i <= 6; i++) {
-        const angle = (PI / 3) * i
-        x = pos.x + cos(angle) * r
-        y = pos.y - h + sin(angle) * r
-        vertex(x, y)
-    }
-    endShape()
-}
-
-function drawHexOutdent(pos, r, h, fillColor = null, strokeColor = null) {
-    let x, y
-
-    const drawSide = (angle, fillColor, strokeColor) => {
-        if (fillColor) {
-            fill(fillColor)
-        } else {
-            noFill()
-        }
-        if (strokeColor) {
-            stroke(0, 255, 0)
-        } else {
-            noStroke()
-        }
-        beginShape()
-        x = pos.x + cos(angle) * r
-        y = pos.y + sin(angle) * r
-        let _x = x
-        let _y = y
-        vertex(x, y)
-        vertex(x, y - h)
-        x = pos.x + cos(angle + PI / 3) * r
-        y = pos.y + sin(angle + PI / 3) * r
-        vertex(x, y - h)
-        vertex(x, y)
-        vertex(_x, _y)
-        endShape()
-    }
-
-    strokeWeight(1)
-
-    drawSide(0, fillColor ? fillColor - 90 : null, strokeColor)
-    drawSide(PI / 3, fillColor ? fillColor - 90 + 25 : null, strokeColor)
-    drawSide((2 * PI) / 3, fillColor ? fillColor - 90 + 50 : null, strokeColor)
-    if (fillColor) {
-        fill(fillColor)
-    } else {
-        noFill()
-    }
-
-    if (strokeColor) {
-        stroke(0, 255, 0)
-    } else {
-        noStroke()
-    }
-    strokeWeight(2)
     beginShape()
     for (let i = 0; i <= 6; i++) {
         const angle = (PI / 3) * i
@@ -738,7 +695,7 @@ function drawBug(type, pos, r) {
     image(images[type], pos.x - size / 2, pos.y - size / 2, size, size)
 }
 
-function selectedStroke() {
+function selectedSpaceStroke() {
     noFill()
     stroke(0, 0, 255)
     strokeWeight(2)
@@ -755,76 +712,4 @@ function availableStroke() {
 function didClickSpace(clickPos, pos) {
     // Radius???
     return clickPos.dist(pos) <= radius
-}
-
-function selectSpace(space) {
-    selected = space
-}
-
-function unselectSpace() {
-    selected = false
-}
-
-function mouseClicked() {
-    const clickPos = createVector(mouseX, mouseY)
-
-    // const playerSpaces = hive.getPlayerSpacesWithPieces()
-    // for (let i = 0; i < playerSpaces.length; i++) {
-    //     const space = playerSpaces[i]
-    //     if (didClickSpace(clickPos, getPosition(space))) {
-    //         if (hive.isMyTurn(space.color)) {
-    //             if (hive.mustPlayQueen(space)) {
-    //                 console.log('Must play queen')
-    //                 return
-    //             }
-    //             selectSpace(space)
-    //             hive.clearAvailableSpaces()
-    //             if (selected) {
-    //                 hive.markSpacesAvailableForPlacement(space)
-    //             }
-    //             return
-    //         }
-    //     }
-    // }
-
-    // const availableSpaces = hive.getAvailableSpaces()
-    // for (let i = 0; i < availableSpaces.length; i++) {
-    //     const space = availableSpaces[i]
-    //     if (didClickSpace(clickPos, getOrientPosition(space))) {
-    //         emitMove(selected, space)
-    //         hive.movePiece(selected, space)
-    //         unselectSpace()
-    //         hive.clearAvailableSpaces()
-    //         // checkForWin()
-    //         // nextTurn()
-    //         return
-    //     }
-    // }
-
-    // const boardPieceSpaces = hive.getSpacesOnBoardWithPieces()
-    // for (let i = 0; i < boardPieceSpaces.length; i++) {
-    //     const space = boardPieceSpaces[i]
-    //     if (didClickSpace(clickPos, getOrientPosition(space))) {
-    //         if (hive.isMyTurn(space.color)) {
-    //             if (hive.wouldBreakOneHive(space)) {
-    //                 console.log('Breaks one hive rule!')
-    //                 return
-    //             }
-    //             if (!selected) {
-    //                 selectSpace(space)
-    //                 hive.setSpacesAvailableByInsect(space)
-    //                 if (hive.getAvailableSpaces().length === 0) {
-    //                     console.log('That piece cannot move')
-    //                     unselectSpace()
-    //                 }
-    //                 return
-    //             } else if (space === selected) {
-    //                 unselectSpace()
-    //                 hive.clearAvailableSpaces()
-    //                 return
-    //             }
-    //         }
-    //     }
-    // }
-    // loop()
 }

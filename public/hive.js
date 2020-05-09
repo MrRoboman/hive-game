@@ -314,7 +314,7 @@ const hive = {
         }
         // Moving piece on board
         else {
-            this.setSpacesAvailableByInsect(fromSpace)
+            this.markSpacesAvailableForMovement(fromSpace)
             return this.includesIndex(this.getAvailableSpaces(), toSpace.index)
         }
     },
@@ -380,7 +380,7 @@ const hive = {
         )
     },
 
-    setSpacesAvailableByInsect(space) {
+    markSpacesAvailableForMovement(space) {
         switch (space.type) {
             case types.BEE:
                 this.beeMove(space)
