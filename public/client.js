@@ -46,7 +46,7 @@ function keyPressed() {
 
 let images
 
-let orientation
+let orientation = {}
 let startDragOrientation
 let mouseStartDragPos
 let draggingSpace = null
@@ -55,9 +55,9 @@ let wasDragged = false
 let waitForRelease = false
 let justSelected = false
 
-const radius = 40
-const STACK_HEIGHT = 8
-const PIECE_HEIGHT = 6
+let radius = 40
+const STACK_HEIGHT = 4
+const PIECE_HEIGHT = 3
 
 let selectedSpace = null
 
@@ -171,6 +171,7 @@ function preload() {
 }
 
 function setup() {
+    radius = 20
     createCanvas(windowWidth, windowHeight)
     orientation = createVector(width / 2, height / 2)
 
@@ -192,11 +193,19 @@ function draw() {
     drawHexesInOrder()
 }
 
-function windowResized() {
-    resizeCanvas(windowWidth, windowHeight)
+function handleResize() {
+    const w = windowWidth
+    const h = windowHeight
+    // const w = document.documentElement.clientWidth
+    // const h = document.documentElement.clientHeight
+    resizeCanvas(w, h)
     spacePositions = {}
-    orientation.x = windowWidth / 2
-    orientation.y = windowHeight / 2
+    orientation.x = w / 2
+    orientation.y = h / 2
+}
+
+function windowResized() {
+    handleResize()
 }
 
 function checkForBrokenRule(space) {
@@ -380,6 +389,7 @@ function dragScreen() {
 
 function drawBackground() {
     background(51, 153, 153)
+    // background(backgroundColor)
     // const pos = getScreenPosition(hive.getSpace([0, 0]))
     // drawIndented(pos, radius, 4, [
     //     [157, 95, 22],
