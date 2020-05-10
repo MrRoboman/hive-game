@@ -321,7 +321,7 @@ function dragLogic() {
                 const space = availableSpaces[i]
                 const position = getStackPosition(space)
                 if (didClickSpace(mousePos, position)) {
-                    // emitMove(selectedSpace, space)
+                    emitMove(selectedSpace, space)
                     hive.movePiece(selectedSpace, space)
                     selectedSpace = null
                     hive.clearAvailableSpaces()
@@ -358,7 +358,7 @@ function dragLogic() {
                 const space = availableSpaces[i]
                 const pos = getStackPosition(space)
                 if (wasDragged && didClickSpace(mousePos, pos)) {
-                    // emitMove(selectedSpace, space)
+                    emitMove(selectedSpace, space)
                     hive.movePiece(draggingSpace, space)
                     // checkForWin()
                     // nextTurn()
