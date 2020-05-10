@@ -243,6 +243,13 @@ function markSpacesAvailable(space) {
     }
 }
 
+function dragScreen() {
+    if (mouseIsPressed) {
+        let mousePos = createVector(mouseX, mouseY)
+    } else {
+    }
+}
+
 function dragLogic() {
     let mousePos = createVector(mouseX, mouseY)
     if (mouseIsPressed) {
@@ -324,9 +331,19 @@ function dragLogic() {
                     return
                 }
             }
+
+            // Drag Screen
+            if (!mouseStartDragPos) {
+                mouseStartDragPos = mousePos.copy()
+                startDragOrientation = orientation
+            }
+
+            mousePos.sub(mouseStartDragPos)
+            orientation = p5.Vector.add(startDragOrientation, mousePos)
         }
     } else {
         waitForRelease = false
+        mouseStartDragPos = null
         if (selectedSpace) {
             if (didClickSpace(mousePos, getStackPosition(selectedSpace))) {
                 if (!justSelected) {
@@ -369,21 +386,6 @@ function drawDrag() {
         const stackPos = createVector(0, STACK_HEIGHT * pieceCount)
         const position = p5.Vector.sub(pos, stackPos)
         drawPiece(draggingSpace.piece, position, radius)
-    }
-}
-
-function dragScreen() {
-    if (mouseIsPressed) {
-        let mousePos = createVector(mouseX, mouseY)
-        if (!mouseStartDragPos) {
-            mouseStartDragPos = mousePos.copy()
-            startDragOrientation = orientation
-        }
-
-        mousePos.sub(mouseStartDragPos)
-        orientation = p5.Vector.add(startDragOrientation, mousePos)
-    } else {
-        mouseStartDragPos = null
     }
 }
 
