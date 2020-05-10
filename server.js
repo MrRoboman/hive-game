@@ -7,6 +7,9 @@ var app = express()
 var server = app.listen(PORT)
 
 app.use(express.static('public'))
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, 'public', 'index.html'))
+// })
 
 var socket = require('socket.io')
 var io = socket(server)
@@ -17,6 +20,14 @@ hive.resetGame()
 
 const board = {}
 const players = {}
+const games = {}
+
+function getGame(gameName) {
+    if (!games[gameName]) {
+        games[gameName] = {}
+    }
+    return games[gameName]
+}
 
 function createPlayer(uuid, socket) {
     players[socket] = {
@@ -36,9 +47,21 @@ function disconnectPlayer(socket) {
     players[socket].isConnected = false
 }
 
-io.sockets.on('connection', (socket) => {
+function extractGameName(socket) {
+    let referer
+    try {
+        referer = socket.handshake.headers.referer
+    } catch (e) {
+        console.error('Cannot extract game name from referer')
+        return null
+    }
+
+    return referer.split('/')[3]
+}
+
+io.sockets.on('connection', socket => {
     socket.emit('handshake0')
-    socket.on('handshake1', (uuid) => {
+    socket.on('handshake1', uuid => {
         if (!uuid) {
             uuid = uuidv4()
             socket.emit('uuid', uuid)
@@ -67,7 +90,7 @@ io.sockets.on('connection', (socket) => {
         io.emit('gameState', getGameState())
     })
 
-    socket.on('disconnect', (data) => {
+    socket.on('disconnect', data => {
         disconnectPlayer(socket)
     })
 })
