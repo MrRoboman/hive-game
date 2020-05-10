@@ -75,6 +75,23 @@ const BROKEN_RULE_NO_MOVES_BEFORE_QUEEN =
 const BROKEN_RULE_ONE_HIVE = 'Must maintain one hive'
 const BROKEN_RULE_MUST_PLAY_QUEEN = 'Must play Queen Bee this turn'
 
+const timeToShowError = 2000
+let errorText = ''
+let timeErrorHappened = 0
+
+function showError(error) {
+    errorText = error
+    timeErrorHappened = Date.now()
+}
+
+function drawError() {
+    if (Date.now() - timeErrorHappened < timeToShowError) {
+        fill(0)
+        textSize(18)
+        text(errorText, 10, 20)
+    }
+}
+
 const TOP = 0
 const BOTTOM = 1
 
@@ -196,6 +213,8 @@ function draw() {
     // drawSelectionHex()
 
     drawHexesInOrder()
+
+    drawError()
 }
 
 function handleResize() {
@@ -285,6 +304,7 @@ function dragLogic() {
                 if (didClickSpace(mousePos, stackPosition)) {
                     const brokenRule = checkForBrokenRule(space)
                     if (brokenRule) {
+                        showError(brokenRule)
                         handleBrokenRule(brokenRule)
                         waitForRelease = true
                         return
@@ -317,6 +337,7 @@ function dragLogic() {
                 if (didClickSpace(mousePos, stackPosition)) {
                     const brokenRule = checkForBrokenRule(space)
                     if (brokenRule) {
+                        showError(brokenRule)
                         handleBrokenRule(brokenRule)
                         waitForRelease = true
                         return
