@@ -56,8 +56,8 @@ let waitForRelease = false
 let justSelected = false
 
 let radius = 40
-const STACK_HEIGHT = 4
-const PIECE_HEIGHT = 3
+const STACK_HEIGHT = 8
+const PIECE_HEIGHT = 6
 
 let selectedSpace = null
 
@@ -171,7 +171,7 @@ function preload() {
 }
 
 function setup() {
-    radius = 20
+    // radius = 20
     createCanvas(windowWidth, windowHeight)
     orientation = createVector(width / 2, height / 2)
 
