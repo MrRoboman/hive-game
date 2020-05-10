@@ -14,6 +14,8 @@ const colors = {
     BLACK: 1,
 }
 
+let turn = colors.WHITE
+
 const STARTING_PIECE_COUNTS = {
     [types.BEE]: 1,
     [types.BEETLE]: 2,
@@ -271,6 +273,23 @@ const hive = {
         this.createPlayerSpaces(colors.WHITE, 0)
         this.createPlayerSpaces(colors.BLACK, this.getTypeCount())
         this.createSpaceAtIndex([0, 0])
+        turn = colors.WHITE
+    },
+
+    getTurn() {
+        return turn
+    },
+
+    nextTurn() {
+        turn = turn === colors.WHITE ? colors.BLACK : colors.WHITE
+        if (!this.playerCanMakeMove(turn)) {
+            turn = turn === colors.WHITE ? colors.BLACK : colors.WHITE
+        }
+        return turn
+    },
+
+    playerCanMakeMove(color) {
+        return true
     },
 
     hasIndex(space, index) {
@@ -300,10 +319,16 @@ const hive = {
     },
 
     isValidMove(fromSpace, toSpace) {
+        // Space does not have piece
         if (!fromSpace.piece) {
             return false
         }
+        // Space is not on board
         if (typeof toSpace.index !== 'object') {
+            return false
+        }
+        // Not your turn
+        if (fromSpace.color !== turn) {
             return false
         }
 

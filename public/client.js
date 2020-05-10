@@ -30,8 +30,10 @@ function emitReset() {
     socket.emit('reset')
 }
 
+socket.on('color', color => (myColor = color))
+socket.on('turn', turn => (turnColor = turn))
+
 socket.on('gameState', gameState => {
-    console.log('gameState', gameState)
     hive.resetSpaces()
     gameState.forEach(({ index, pieces }) => {
         hive.createSpaceAtIndex(index, pieces)
@@ -62,9 +64,12 @@ const PIECE_HEIGHT = 6
 let selectedSpace = null
 
 // TODO: Add turns
+let myColor
+let turnColor
 
 const BROKEN_RULE_NO_PIECE = 'Space has no piece'
 const BROKEN_RULE_NOT_MY_TURN = 'Not my turn'
+const BROKEN_RULE_NOT_MY_COLOR = 'Not my color'
 const BROKEN_RULE_NO_MOVES_BEFORE_QUEEN =
     'Cannot move pieces until Queen Bee is played'
 const BROKEN_RULE_ONE_HIVE = 'Must maintain one hive'
@@ -208,12 +213,27 @@ function windowResized() {
     handleResize()
 }
 
+function isMyTurn() {
+    return turnColor === myColor
+}
+
+function isMyColor(space) {
+    return space.color === myColor
+}
+
 function checkForBrokenRule(space) {
     if (!space.piece) {
         return BROKEN_RULE_NO_PIECE
     }
 
-    // if is my turn
+    console.log({ myColor, turnColor })
+    if (!isMyTurn()) {
+        return BROKEN_RULE_NOT_MY_TURN
+    }
+
+    if (!isMyColor(space)) {
+        return BROKEN_RULE_NOT_MY_COLOR
+    }
 
     if (hive.isOnBoard(space)) {
         if (!hive.queenIsOnBoard(space)) {

@@ -21,6 +21,8 @@ hive.resetGame()
 const board = {}
 const players = {}
 const games = {}
+let whitePlayer
+let blackPlayer
 
 function getGame(gameName) {
     if (!games[gameName]) {
@@ -66,10 +68,26 @@ io.sockets.on('connection', socket => {
             uuid = uuidv4()
             socket.emit('uuid', uuid)
         }
-        if (!getPlayer(uuid)) {
-            createPlayer(uuid, socket)
+        socket.uuid = uuid
+        // if (!getPlayer(uuid)) {
+        //     createPlayer(uuid, socket)
+        // }
+        // console.log(uuid)
+        players[socket.id] = socket
+        if (!whitePlayer) {
+            if (socket !== blackPlayer) {
+                console.log('white')
+                whitePlayer = socket
+                socket.emit('color', hive.colors.WHITE)
+            }
+        } else if (!blackPlayer) {
+            if (socket !== whitePlayer) {
+                console.log('black')
+                blackPlayer = socket
+                socket.emit('color', hive.colors.BLACK)
+            }
         }
-        console.log(uuid)
+        socket.emit('turn', hive.getTurn())
         socket.emit('gameState', getGameState())
     })
 
@@ -81,17 +99,38 @@ io.sockets.on('connection', socket => {
         if (hive.isValidMove(fromSpace, toSpace)) {
             hive.movePiece(fromSpace, toSpace)
             socket.broadcast.emit('gameState', getGameState())
+            io.emit('turn', hive.nextTurn())
         }
     })
 
     socket.on('reset', () => {
         hive.resetGame()
-        console.log('broadcast!')
+        whitePlayer = null
+        blackPlayer = null
+
+        Object.keys(players).forEach((socketId, i) => {
+            console.log({ socketId })
+            if (i === 0) {
+                whitePlayer = players[socketId]
+                players[socketId].emit('color', hive.colors.WHITE)
+            } else if (i === 1) {
+                blackPlayer = players[socketId]
+                players[socketId].emit('color', hive.colors.BLACK)
+            }
+        })
+
         io.emit('gameState', getGameState())
     })
 
     socket.on('disconnect', data => {
-        disconnectPlayer(socket)
+        // disconnectPlayer(socket)
+        delete players[socket.id]
+        if (socket === whitePlayer) {
+            whitePlayer = null
+        }
+        if (socket === blackPlayer) {
+            blackPlayer = null
+        }
     })
 })
 
