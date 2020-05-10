@@ -1,4 +1,4 @@
-let spaces
+let spaces = {}
 let players
 
 const types = {
